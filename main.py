@@ -1,7 +1,12 @@
 from parseargs import parse_arguments
+from distillation import ACPolicyDistillation
+import numpy as np
+import torch
 
 def main(args):
-    None
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    distillation = ACPolicyDistillation()
 
 if __name__ == '__main__':
     args = parse_arguments()
