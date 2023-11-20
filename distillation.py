@@ -1,3 +1,10 @@
+import torch
+from torch.utils.tensorboard import SummaryWriter
+import tianshou as ts
+import pandas as pd
+import numpy as np
+import gymnasium as gym
+
 class ACPolicyDistillation:
     """
     Class containing a selection of Actor-Critic policy distillation techniques for baseline experimentation.
@@ -7,6 +14,11 @@ class ACPolicyDistillation:
         # optimization method, distance metric, type of distillation, hyperparameters, etc
         self.args = args
         # TODO: Setup vectorized env for teacher and student, with the student having a separate task
+        if args.env_name == 'pusher':
+            teacher_env = gym.make("Pusher-v4", xml_file='envs/pusher/default.xml')
+            student_env = gym.make("Pusher-v4", xml_file='envs/pusher/new_goal.xml')
+        else:
+            assert NotImplementedError, f"The environment {args.env_name} is not supported"
         # TODO: Initialize both teacher and student with pre-defined networks for actor and critic
         # TODO: Setup collectors for teacher and student
         # TODO: Setup trainer for teacher
