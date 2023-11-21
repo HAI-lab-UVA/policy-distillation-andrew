@@ -15,8 +15,8 @@ class ACPolicyDistillation:
         self.args = args
         # TODO: Setup vectorized env for teacher and student, with the student having a separate task
         if args.env_name == 'pusher':
-            teacher_env = gym.make("Pusher-v4", xml_file='envs/pusher/default.xml')
-            student_env = gym.make("Pusher-v4", xml_file='envs/pusher/new_goal.xml')
+            teacher_env = gym.make("Pusher-v4")
+            student_env = gym.make("envs.register:NewGoal-Pusher-v4")
         else:
             assert NotImplementedError, f"The environment {args.env_name} is not supported"
         # TODO: Initialize both teacher and student with pre-defined networks for actor and critic

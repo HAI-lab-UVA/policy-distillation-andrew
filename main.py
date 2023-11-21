@@ -6,7 +6,7 @@ import torch
 def main(args):
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
-    distillation = ACPolicyDistillation()
+    distillation = ACPolicyDistillation(args)
 
 if __name__ == '__main__':
     args = parse_arguments()
