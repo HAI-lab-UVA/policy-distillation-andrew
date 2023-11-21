@@ -13,13 +13,39 @@ class ACPolicyDistillation:
         # TODO: Initialize the experiment, including: teacher and student models, 
         # optimization method, distance metric, type of distillation, hyperparameters, etc
         self.args = args
-        # TODO: Setup vectorized env for teacher and student, with the student having a separate task
+
+        # Setup vectorized env for teacher and student, with the student having a separate task
         if args.env_name == 'pusher':
-            teacher_env = gym.make("Pusher-v4")
-            student_env = gym.make("envs.register:NewGoal-Pusher-v4")
+            self.teacher_env = gym.make("Pusher-v4")
+            self.student_env = gym.make("envs.register:NewGoal-Pusher-v4")
         else:
             assert NotImplementedError, f"The environment {args.env_name} is not supported"
+        self.state_shape = self.teacher_env.observation_space.shape or self.teacher_env.observation_space.n
+        self.action_shape = self.teacher_env.action_space.shape or self.teacher_env.action_space.n
+
         # TODO: Initialize both teacher and student with pre-defined networks for actor and critic
+        self.teacher_policy = ts.policy.TRPOPolicy(actor=ts.utils.net.continuous.Actor(),
+                                                   critic=ts.utils.net.continuous.Critic(),
+                                                   optim=torch.optim.Adam(),
+                                                   dist_fn=None,
+                                                   action_space=self.action_shape,
+                                                   observation_space=self.state_shape,
+                                                   max_kl=0.01,
+                                                   discount_factor=0.99,
+                                                   optim_critic_iters=5,
+                                                   )
+        
+        self.student_policy = ts.policy.TRPOPolicy(actor=ts.utils.net.continuous.Actor(),
+                                                   critic=ts.utils.net.continuous.Critic(),
+                                                   optim=torch.optim.Adam(),
+                                                   dist_fn=None,
+                                                   action_space=self.action_shape,
+                                                   observation_space=self.state_shape,
+                                                   max_kl=0.01,
+                                                   discount_factor=0.99,
+                                                   optim_critic_iters=5,
+                                                   )
+
         # TODO: Setup collectors for teacher and student
         # TODO: Setup trainer for teacher
         # TODO: Setup TB logging for teacher and student
