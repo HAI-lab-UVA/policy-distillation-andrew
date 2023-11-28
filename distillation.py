@@ -14,6 +14,7 @@ from tianshou.utils.net.continuous import ActorProb, Critic
 
 import pandas as pd
 import numpy as np
+import os
 import gymnasium as gym
 
 class ACPolicyDistillation:
@@ -24,14 +25,14 @@ class ACPolicyDistillation:
         """Defines the distance function"""
         return Independent(Normal(*logits), 1)
     
-    def make_AC(self, args):
+    def make_AC(self):
         """
         Initializes Actor and Critic networks. 
         Based on code from https://github.com/thu-ml/tianshou/blob/master/examples/mujoco/mujoco_trpo.py
         """
         net_a = Net(
             self.state_shape,
-            hidden_sizes=args.hidden_sizes,
+            hidden_sizes=self.args.hidden_sizes,
             activation=nn.Tanh,
             device=self.device,
         )
@@ -44,7 +45,7 @@ class ACPolicyDistillation:
 
         net_c = Net(
             self.state_shape,
-            hidden_sizes=args.hidden_sizes,
+            hidden_sizes=self.args.hidden_sizes,
             activation=nn.Tanh,
             device=self.device,
         )
@@ -63,11 +64,11 @@ class ACPolicyDistillation:
                 torch.nn.init.zeros_(m.bias)
                 m.weight.data.copy_(0.01 * m.weight.data)
 
-        optim = torch.optim.Adam(critic.parameters(), lr=args.lr)
+        optim = torch.optim.Adam(critic.parameters(), lr=self.args.lr)
         lr_scheduler = None
-        if args.lr_decay:
+        if self.args.lr_decay:
             # decay learning rate to 0 linearly
-            max_update_num = np.ceil(args.step_per_epoch / args.step_per_collect) * args.epoch
+            max_update_num = np.ceil(self.args.step_per_epoch / self.args.step_per_collect) * self.args.epoch
 
             lr_scheduler = LambdaLR(optim, lr_lambda=lambda epoch: 1 - epoch / max_update_num)
         
@@ -145,16 +146,42 @@ class ACPolicyDistillation:
         self.student_test_collector = Collector(self.student_policy, self.student_test_env)
 
         # Setup TB logging for teacher and student
-        
-        # TODO: Define objective func/distance metric
-        # TODO: Setup trainer for teacher
-        # TODO: Run the appropriate experiment
+        teacher_path = os.path.join('teacher', args.save_path)
+        teacher_writer = SummaryWriter(teacher_path)
+        teacher_writer.add_text("args", str(self.args))
+        self.teacher_logger = TensorboardLogger(teacher_writer)
+
+        student_path = os.path.join('student', args.save_path)
+        student_writer = SummaryWriter(student_path)
+        student_writer.add_text("args", str(self.args))
+        self.student_logger = TensorboardLogger(student_writer)
+
+        # Define objective func/distance metric
+
+        # Setup trainer for teacher
+        self.teacher_trainer = OnpolicyTrainer(
+            policy=self.teacher_policy,
+            train_collector=self.teacher_train_collector,
+            test_collector=self.teacher_test_collector,
+            max_epoch=args.epoch,
+            step_per_epoch=args.step_per_epoch,
+            repeat_per_collect=args.repeat_per_collect,
+            episode_per_test=1,
+            batch_size=args.batch_size,
+            step_per_collect=args.step_per_collect,
+            logger=self.teacher_logger,
+            test_in_train=False,
+        )
+
+        # Train teacher as per docs until convergence
+        self.teacher_results = self.teacher_trainer.run()
+
+        # Run the appropriate experiment
 
     def RunVanilla(self):
         """
         Run an experiment with vanilla policy distillation.
         """
-        # TODO: Train teacher as per docs until convergence
         # TODO: Figure out how to train student according to objective function 
         # (https://tianshou.readthedocs.io/en/master/tutorials/dqn.html#train-a-policy-with-customized-codes)
         assert NotImplementedError
