@@ -19,7 +19,8 @@ import gymnasium as gym
 
 class ACPolicyDistillation:
     """
-    Class containing a selection of Actor-Critic policy distillation techniques for baseline experimentation.
+    Class containing a selection of Actor-Critic policy distillation techniques for baseline experimentation. 
+    Based on code from https://github.com/thu-ml/tianshou/blob/master/examples/mujoco/mujoco_trpo.py
     """
     def dist(*logits):
         """Defines the distance function"""
@@ -27,8 +28,7 @@ class ACPolicyDistillation:
     
     def make_AC(self):
         """
-        Initializes Actor and Critic networks. 
-        Based on code from https://github.com/thu-ml/tianshou/blob/master/examples/mujoco/mujoco_trpo.py
+        Initializes Actor and Critic networks.
         """
         net_a = Net(
             self.state_shape,
@@ -91,12 +91,12 @@ class ACPolicyDistillation:
             self.student_test_env = gym.make("envs.register:NewGoal-Pusher-v4")
         else:
             assert NotImplementedError, f"The environment {args.env_name} is not supported"
-        self.state_shape = self.teacher_env.observation_space.shape or self.teacher_env.observation_space.n
-        self.action_shape = self.teacher_env.action_space.shape or self.teacher_env.action_space.n
+        self.state_shape = self.teacher_train_env.observation_space.shape or self.teacher_train_env.observation_space.n
+        self.action_shape = self.teacher_train_env.action_space.shape or self.teacher_train_env.action_space.n
 
         # Initialize both teacher and student with pre-defined networks for actor and critic
-        self.teacher_ac = self.make_AC(self.args)
-        self.student_ac = self.make_AC(self.args)
+        self.teacher_ac = self.make_AC()
+        self.student_ac = self.make_AC()
 
         self.teacher_policy = TRPOPolicy(
             actor=self.teacher_ac['actor'],
@@ -109,7 +109,7 @@ class ACPolicyDistillation:
             action_scaling=True,
             action_bound_method=args.bound_action_method,
             lr_scheduler=self.teacher_ac['schedule'],
-            action_space=self.action_space,
+            action_space=self.teacher_train_env.action_space,
             advantage_normalization=args.norm_adv,
             optim_critic_iters=args.optim_critic_iters,
             max_kl=args.max_kl,
@@ -128,7 +128,7 @@ class ACPolicyDistillation:
             action_scaling=True,
             action_bound_method=args.bound_action_method,
             lr_scheduler=self.student_ac['optim'],
-            action_space=self.action_space,
+            action_space=self.student_train_env.action_space,
             advantage_normalization=args.norm_adv,
             optim_critic_iters=args.optim_critic_iters,
             max_kl=args.max_kl,
@@ -176,7 +176,8 @@ class ACPolicyDistillation:
         # Train teacher as per docs until convergence
         self.teacher_results = self.teacher_trainer.run()
 
-        # Run the appropriate experiment
+        # TODO: Run the appropriate experiment
+        return None
 
     def RunVanilla(self):
         """
