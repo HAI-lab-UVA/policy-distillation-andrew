@@ -7,7 +7,7 @@ def parse_arguments():
 
     parser.add_argument("--seed", type=int, default=1,
                         help="seed of the experiment")
-    parser.add_argument("--save-path", type=str, default=f'./logging/{datetime.datetime.now().strftime("%y%m%d-%H%M%S")}',
+    parser.add_argument("--save-path", type=str, default=f'{datetime.datetime.now().strftime("%y%m%d-%H%M%S")}',
                         help="the directory to which results are saved")
     parser.add_argument("--env-name", type=str, default="pusher",
                         help="the name of the environment")
