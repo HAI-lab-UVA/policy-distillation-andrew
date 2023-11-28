@@ -22,7 +22,7 @@ class ACPolicyDistillation:
     Class containing a selection of Actor-Critic policy distillation techniques for baseline experimentation. 
     Based on code from https://github.com/thu-ml/tianshou/blob/master/examples/mujoco/mujoco_trpo.py
     """
-    def dist(*logits):
+    def dist(self, *logits):
         """Defines the distance function"""
         return Independent(Normal(*logits), 1)
     
@@ -146,12 +146,12 @@ class ACPolicyDistillation:
         self.student_test_collector = Collector(self.student_policy, self.student_test_env)
 
         # Setup TB logging for teacher and student
-        teacher_path = os.path.join('teacher', args.save_path)
+        teacher_path = os.path.join('./logging/teacher', args.save_path)
         teacher_writer = SummaryWriter(teacher_path)
         teacher_writer.add_text("args", str(self.args))
         self.teacher_logger = TensorboardLogger(teacher_writer)
 
-        student_path = os.path.join('student', args.save_path)
+        student_path = os.path.join('./logging/student', args.save_path)
         student_writer = SummaryWriter(student_path)
         student_writer.add_text("args", str(self.args))
         self.student_logger = TensorboardLogger(student_writer)
