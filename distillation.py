@@ -8,6 +8,7 @@ import tianshou as ts
 from tianshou.data import Collector, ReplayBuffer, VectorReplayBuffer
 from tianshou.policy import TRPOPolicy
 from tianshou.trainer import OnpolicyTrainer
+from tianshou.utils import TensorboardLogger
 from tianshou.utils.net.common import Net
 from tianshou.utils.net.continuous import ActorProb, Critic
 
@@ -83,14 +84,16 @@ class ACPolicyDistillation:
 
         # Setup vectorized env for teacher and student, with the student having a separate task
         if args.env_name == 'pusher':
-            self.teacher_env = gym.make("Pusher-v4")
-            self.student_env = gym.make("envs.register:NewGoal-Pusher-v4")
+            self.teacher_train_env = gym.make("Pusher-v4")
+            self.teacher_test_env = gym.make("Pusher-v4")
+            self.student_train_env = gym.make("envs.register:NewGoal-Pusher-v4")
+            self.student_test_env = gym.make("envs.register:NewGoal-Pusher-v4")
         else:
             assert NotImplementedError, f"The environment {args.env_name} is not supported"
         self.state_shape = self.teacher_env.observation_space.shape or self.teacher_env.observation_space.n
         self.action_shape = self.teacher_env.action_space.shape or self.teacher_env.action_space.n
 
-        # TODO: Initialize both teacher and student with pre-defined networks for actor and critic
+        # Initialize both teacher and student with pre-defined networks for actor and critic
         self.teacher_ac = self.make_AC(self.args)
         self.student_ac = self.make_AC(self.args)
 
@@ -132,8 +135,17 @@ class ACPolicyDistillation:
             max_backtracks=args.max_backtracks,
         )
 
-        # TODO: Setup collectors for teacher and student
-        # TODO: Setup TB logging for teacher and student
+        # Setup buffers and collectors for teacher and student
+        self.teacher_buffer = ReplayBuffer(args.buffer_size)
+        self.student_buffer = ReplayBuffer(args.buffer_size)
+
+        self.teacher_train_collector = Collector(self.teacher_policy, self.teacher_train_env, self.teacher_buffer, exploration_noise=True)
+        self.teacher_test_collector = Collector(self.teacher_policy, self.teacher_test_env)
+        self.student_train_collector = Collector(self.student_policy, self.student_train_env, self.student_buffer, exploration_noise=True)
+        self.student_test_collector = Collector(self.student_policy, self.student_test_env)
+
+        # Setup TB logging for teacher and student
+        
         # TODO: Define objective func/distance metric
         # TODO: Setup trainer for teacher
         # TODO: Run the appropriate experiment
