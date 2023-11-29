@@ -15,23 +15,28 @@ def parse_arguments():
     # Below args from https://github.com/thu-ml/tianshou/blob/master/examples/mujoco/mujoco_trpo.py
     parser.add_argument("--buffer-size", type=int, default=4096)
     parser.add_argument(
-        "--hidden-sizes",
+        "--critic-hidden-sizes",
         type=int,
         nargs="*",
-        default=[64, 64],
+        default=[230, 118, 5],
+    )  # baselines [32, 32]
+    parser.add_argument(
+        "--actor-hidden-sizes",
+        type=int,
+        nargs="*",
+        default=[230, 150, 70],
     )  # baselines [32, 32]
     parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--gamma", type=float, default=0.99)
+    parser.add_argument("--gamma", type=float, default=0.998)
     parser.add_argument("--epoch", type=int, default=100)
     parser.add_argument("--step-per-epoch", type=int, default=30000)
     parser.add_argument("--step-per-collect", type=int, default=1024)
     parser.add_argument("--repeat-per-collect", type=int, default=1)
     # batch-size >> step-per-collect means calculating all data in one singe forward.
-    parser.add_argument("--batch-size", type=int, default=32)
+    parser.add_argument("--batch-size", type=int, default=128)
     # trpo special
     parser.add_argument("--rew-norm", type=int, default=True)
-    parser.add_argument("--gae-lambda", type=float, default=0.95)
-    # TODO tanh support
+    parser.add_argument("--gae-lambda", type=float, default=0.98)
     parser.add_argument("--bound-action-method", type=str, default="clip")
     parser.add_argument("--lr-decay", type=int, default=True)
     parser.add_argument("--render", type=float, default=0.0)

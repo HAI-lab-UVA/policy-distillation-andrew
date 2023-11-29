@@ -32,7 +32,7 @@ class ACPolicyDistillation:
         """
         net_a = Net(
             self.state_shape,
-            hidden_sizes=self.args.hidden_sizes,
+            hidden_sizes=self.args.actor_hidden_sizes,
             activation=nn.Tanh,
             device=self.device,
         )
@@ -45,7 +45,7 @@ class ACPolicyDistillation:
 
         net_c = Net(
             self.state_shape,
-            hidden_sizes=self.args.hidden_sizes,
+            hidden_sizes=self.args.critic_hidden_sizes,
             activation=nn.Tanh,
             device=self.device,
         )
