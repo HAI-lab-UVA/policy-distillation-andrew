@@ -84,15 +84,17 @@ class ACPolicyDistillation:
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         # Setup vectorized env for teacher and student, with the student having a separate task
+        # TODO: Use ts DummyVecEnv
         if args.env_name == 'pusher':
-            self.teacher_train_env = gym.make("Pusher-v4")
-            self.teacher_test_env = gym.make("Pusher-v4")
-            self.student_train_env = gym.make("envs.register:NewGoal-Pusher-v4")
-            self.student_test_env = gym.make("envs.register:NewGoal-Pusher-v4")
+            self.env = gym.make("Pusher-v4")
+            self.teacher_train_env = ts.env.DummyVectorEnv([lambda: gym.make("Pusher-v4") for _ in range(1)])
+            self.teacher_test_env = ts.env.DummyVectorEnv([lambda: gym.make("Pusher-v4") for _ in range(1)])
+            self.student_train_env = ts.env.DummyVectorEnv([lambda: gym.make("envs.register:NewGoal-Pusher-v4") for _ in range(1)])
+            self.student_test_env = ts.env.DummyVectorEnv([lambda: gym.make("envs.register:NewGoal-Pusher-v4") for _ in range(1)])
         else:
             assert NotImplementedError, f"The environment {args.env_name} is not supported"
-        self.state_shape = self.teacher_train_env.observation_space.shape or self.teacher_train_env.observation_space.n
-        self.action_shape = self.teacher_train_env.action_space.shape or self.teacher_train_env.action_space.n
+        self.state_shape = self.env.observation_space.shape or self.env.observation_space.n
+        self.action_shape = self.env.action_space.shape or self.env.action_space.n
 
         # Initialize both teacher and student with pre-defined networks for actor and critic
         self.teacher_ac = self.make_AC()
@@ -109,7 +111,7 @@ class ACPolicyDistillation:
             action_scaling=True,
             action_bound_method=args.bound_action_method,
             lr_scheduler=self.teacher_ac['schedule'],
-            action_space=self.teacher_train_env.action_space,
+            action_space=self.env.action_space,
             advantage_normalization=args.norm_adv,
             optim_critic_iters=args.optim_critic_iters,
             max_kl=args.max_kl,
@@ -128,7 +130,7 @@ class ACPolicyDistillation:
             action_scaling=True,
             action_bound_method=args.bound_action_method,
             lr_scheduler=self.student_ac['optim'],
-            action_space=self.student_train_env.action_space,
+            action_space=self.env.action_space,
             advantage_normalization=args.norm_adv,
             optim_critic_iters=args.optim_critic_iters,
             max_kl=args.max_kl,
