@@ -27,7 +27,7 @@ def parse_arguments():
     parser.add_argument("--step-per-collect", type=int, default=1024)
     parser.add_argument("--repeat-per-collect", type=int, default=1)
     # batch-size >> step-per-collect means calculating all data in one singe forward.
-    parser.add_argument("--batch-size", type=int, default=32)
+    parser.add_argument("--batch-size", type=int, default=99999)
     # trpo special
     parser.add_argument("--rew-norm", type=int, default=True)
     parser.add_argument("--gae-lambda", type=float, default=0.95)
