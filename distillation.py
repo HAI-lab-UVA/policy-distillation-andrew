@@ -87,10 +87,14 @@ class ACPolicyDistillation:
         # TODO: Use ts DummyVecEnv
         if args.env_name == 'pusher':
             self.env = gym.make("Pusher-v4")
-            self.teacher_train_env = ts.env.DummyVectorEnv([lambda: gym.make("Pusher-v4") for _ in range(1)])
-            self.teacher_test_env = ts.env.DummyVectorEnv([lambda: gym.make("Pusher-v4") for _ in range(1)])
-            self.student_train_env = ts.env.DummyVectorEnv([lambda: gym.make("envs.register:NewGoal-Pusher-v4") for _ in range(1)])
-            self.student_test_env = ts.env.DummyVectorEnv([lambda: gym.make("envs.register:NewGoal-Pusher-v4") for _ in range(1)])
+            self.teacher_train_env = ts.env.ShmemVectorEnv([lambda: gym.make("Pusher-v4") for _ in range(args.training_num)])
+            self.teacher_train_env.seed(self.args.seed)
+            self.teacher_test_env = ts.env.ShmemVectorEnv([lambda: gym.make("Pusher-v4") for _ in range(self.args.test_num)])
+            self.teacher_test_env.seed(self.args.seed)
+            self.student_train_env = ts.env.ShmemVectorEnv([lambda: gym.make("envs.register:NewGoal-Pusher-v4") for _ in range(args.training_num)])
+            self.student_train_env.seed(self.args.seed)
+            self.student_test_env = ts.env.ShmemVectorEnv([lambda: gym.make("envs.register:NewGoal-Pusher-v4") for _ in range(args.test_num)])
+            self.student_test_env.seed(self.args.seed)
         else:
             assert NotImplementedError, f"The environment {args.env_name} is not supported"
         self.state_shape = self.env.observation_space.shape or self.env.observation_space.n

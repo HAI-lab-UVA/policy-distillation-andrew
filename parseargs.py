@@ -26,6 +26,8 @@ def parse_arguments():
     parser.add_argument("--step-per-epoch", type=int, default=30000)
     parser.add_argument("--step-per-collect", type=int, default=1024)
     parser.add_argument("--repeat-per-collect", type=int, default=1)
+    parser.add_argument("--training-num", type=int, default=16)
+    parser.add_argument("--test-num", type=int, default=10)
     # batch-size >> step-per-collect means calculating all data in one singe forward.
     parser.add_argument("--batch-size", type=int, default=99999)
     # trpo special
