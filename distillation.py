@@ -143,8 +143,12 @@ class ACPolicyDistillation:
         )
 
         # Setup buffers and collectors for teacher and student
-        self.teacher_buffer = ReplayBuffer(args.buffer_size)
-        self.student_buffer = ReplayBuffer(args.buffer_size)
+        if args.training_num > 1:
+            self.teacher_buffer = VectorReplayBuffer(args.buffer_size, args.training_num)
+            self.student_buffer = VectorReplayBuffer(args.buffer_size, args.training_num)
+        else:
+            self.teacher_buffer = ReplayBuffer(args.buffer_size)
+            self.student_buffer = ReplayBuffer(args.buffer_size)
 
         self.teacher_train_collector = Collector(self.teacher_policy, self.teacher_train_env, self.teacher_buffer, exploration_noise=True)
         self.teacher_test_collector = Collector(self.teacher_policy, self.teacher_test_env)
