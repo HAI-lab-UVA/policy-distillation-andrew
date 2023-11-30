@@ -101,12 +101,12 @@ class ACPolicyDistillation:
         self.student_test_env.seed(self.args.seed)
 
         # Norm env observations
-        self.teacher_train_envs = ts.env.VectorEnvNormObs(self.teacher_train_envs)
-        self.teacher_test_envs = ts.env.VectorEnvNormObs(self.teacher_test_envs, update_obs_rms=False)
-        self.teacher_test_envs.set_obs_rms(self.teacher_train_envs.get_obs_rms())
-        self.student_train_envs = ts.env.VectorEnvNormObs(self.student_train_envs)
-        self.student_test_envs = ts.env.VectorEnvNormObs(self.student_test_envs, update_obs_rms=False)
-        self.student_test_envs.set_obs_rms(self.student_train_envs.get_obs_rms())
+        self.teacher_train_env = ts.env.VectorEnvNormObs(self.teacher_train_env)
+        self.teacher_test_env = ts.env.VectorEnvNormObs(self.teacher_test_env, update_obs_rms=False)
+        self.teacher_test_env.set_obs_rms(self.teacher_train_env.get_obs_rms())
+        self.student_train_env = ts.env.VectorEnvNormObs(self.student_train_env)
+        self.student_test_env = ts.env.VectorEnvNormObs(self.student_test_env, update_obs_rms=False)
+        self.student_test_env.set_obs_rms(self.student_train_env.get_obs_rms())
         
         self.state_shape = self.env.observation_space.shape or self.env.observation_space.n
         self.action_shape = self.env.action_space.shape or self.env.action_space.n
