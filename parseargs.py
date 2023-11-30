@@ -5,7 +5,7 @@ import datetime
 def parse_arguments():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--seed", type=int, default=1,
+    parser.add_argument("--seed", type=int, default=0,
                         help="seed of the experiment")
     parser.add_argument("--save-path", type=str, default=f'{datetime.datetime.now().strftime("%y%m%d-%H%M%S")}',
                         help="the directory to which results are saved")

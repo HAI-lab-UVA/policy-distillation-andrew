@@ -87,16 +87,27 @@ class ACPolicyDistillation:
         # TODO: Use ts DummyVecEnv
         if args.env_name == 'pusher':
             self.env = gym.make("Pusher-v4")
-            self.teacher_train_env = ts.env.ShmemVectorEnv([lambda: gym.make("Pusher-v4") for _ in range(args.training_num)])
-            self.teacher_train_env.seed(self.args.seed)
-            self.teacher_test_env = ts.env.ShmemVectorEnv([lambda: gym.make("Pusher-v4") for _ in range(self.args.test_num)])
-            self.teacher_test_env.seed(self.args.seed)
+            self.teacher_train_env = ts.env.ShmemVectorEnv([lambda: gym.make("Pusher-v4") for _ in range(args.training_num)])            
+            self.teacher_test_env = ts.env.ShmemVectorEnv([lambda: gym.make("Pusher-v4") for _ in range(self.args.test_num)])            
             self.student_train_env = ts.env.ShmemVectorEnv([lambda: gym.make("envs.register:NewGoal-Pusher-v4") for _ in range(args.training_num)])
-            self.student_train_env.seed(self.args.seed)
             self.student_test_env = ts.env.ShmemVectorEnv([lambda: gym.make("envs.register:NewGoal-Pusher-v4") for _ in range(args.test_num)])
-            self.student_test_env.seed(self.args.seed)
         else:
             assert NotImplementedError, f"The environment {args.env_name} is not supported"
+
+        # set env seeds
+        self.teacher_train_env.seed(self.args.seed)
+        self.teacher_test_env.seed(self.args.seed)
+        self.student_train_env.seed(self.args.seed)
+        self.student_test_env.seed(self.args.seed)
+
+        # Norm env observations
+        self.teacher_train_envs = ts.env.VectorEnvNormObs(self.teacher_train_envs)
+        self.teacher_test_envs = ts.env.VectorEnvNormObs(self.teacher_test_envs, update_obs_rms=False)
+        self.teacher_test_envs.set_obs_rms(self.teacher_train_envs.get_obs_rms())
+        self.student_train_envs = ts.env.VectorEnvNormObs(self.student_train_envs)
+        self.student_test_envs = ts.env.VectorEnvNormObs(self.student_test_envs, update_obs_rms=False)
+        self.student_test_envs.set_obs_rms(self.student_train_envs.get_obs_rms())
+        
         self.state_shape = self.env.observation_space.shape or self.env.observation_space.n
         self.action_shape = self.env.action_space.shape or self.env.action_space.n
 
