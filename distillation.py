@@ -23,7 +23,7 @@ class ACPolicyDistillation:
     Based on code from https://github.com/thu-ml/tianshou/blob/master/examples/mujoco/mujoco_trpo.py
     """
     def dist(self, *logits):
-        """Defines the distance function"""
+        """Defines the distribution function for computing the action"""
         return Independent(Normal(*logits), 1)
     
     def make_AC(self):
@@ -198,24 +198,37 @@ class ACPolicyDistillation:
         self.teacher_results = self.teacher_trainer.run()
 
         # TODO: Run the appropriate experiment
+        if args.distil_method == 'vanilla':
+            self.RunVanilla()
+        else:
+            assert NotImplementedError, f"The distillation method {args.distil_method} is not supported"
         return None
 
     def RunVanilla(self):
         """
-        Run an experiment with vanilla policy distillation.
+        Run an experiment with vanilla on-policy distillation.
+
+        Loss: H(pi(s)||pi_theta(s))*[V_pi(s)-V_pi_theta(s)]_{>0}
         """
         # TODO: Figure out how to train student according to objective function 
         # (https://tianshou.readthedocs.io/en/master/tutorials/dqn.html#train-a-policy-with-customized-codes)
+        # * Collect experience normally
+        # * Update AC NNs w/ loss directly, instead of student TRPOPolicy learn() or update()
+        # * Test as normal
         assert NotImplementedError
     
     def RunBootstrap(self):
         """
         Run a policy distillation experiment where the value function is bootstrapped from the Teacher.
+
+        Loss: -log(pi_theta(a_t|T_t)) * [r(a_t|T_t) + V_pi(T_{t+1})]
         """
         assert NotImplementedError
     
     def RunCriticReward(self):
         """
         Run a policy distillation experiment where the critic is used as intrinsic reward for the Student.
+
+        Loss: E_pi_theta[SUM over T: V_pi(T_{t+1}) - V_pi(T_t) + r_t]
         """
         assert NotImplementedError
