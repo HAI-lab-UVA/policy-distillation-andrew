@@ -215,9 +215,9 @@ class ACPolicyDistillation:
         if args.retrain_teacher: 
             # Train teacher as per docs until convergence
             self.teacher_results = self.teacher_trainer.run()
-            torch.save(self.teacher_policy.state_dict(), './saved_models/ppo/policy.pt')
+            torch.save(self.teacher_policy.state_dict(), './saved_models/trpo/policy.pt')
         else: 
-            self.teacher_policy.load_state_dict(torch.load('./saved_models/ppo/policy.pt'))
+            self.teacher_policy.load_state_dict(torch.load('./saved_models/trpo/policy.pt'))
 
         # Train student 
         self.student_policy.actor.load_state_dict(self.teacher_policy.actor.state_dict())
