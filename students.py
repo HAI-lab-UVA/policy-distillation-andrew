@@ -79,30 +79,17 @@ class VanillaStudentPolicy(ts.policy.A2CPolicy):
             for minibatch in batch.split(split_batch_size, merge_last=True):
                 # Get pi(s)
                 # TODO: Check whether state should be None
-                # TODO: ActorProb outputs a touple of ((mu, sigma), state) 
-                # where mu and sigma are the parameters of a gaussian dist.
-                # This is why we need to call dist_fn: to make a distribution from these params.
-                # Can we call log_prob on the torch.distributions?
-                # TODO: Follow steps to compute KL div in trpo instead
                 with torch.no_grad():
-                    t_logits, t_hidden = self.teacher_policy.actor(minibatch.obs, state=None, info=minibatch.info)
-                    if isinstance(t_logits, tuple):
-                        t_dist = self.teacher_policy.dist_fn(*t_logits)
-                    else:
-                        t_dist = self.teacher_policy.dist_fn(t_logits)
+                    teacher_mb = self.teacher_policy.forward(batch=minibatch, state=None)
+                    # NOTE: Equivalent to self(mb).dist within techer_policy.learn()?
+                    teacher_dist = self.teacher_policy(teacher_mb).dist
 
                 # Get pi_theta(s)
                 # TODO: Check whether state should be None
-                s_logits, s_hidden, _ = self.student_policy.actor(minibatch.obs, state=None, info=minibatch.info)
-                if isinstance(s_logits, tuple):
-                    s_dist = self.student_policy.dist_fn(*s_logits)
-                else:
-                    s_dist = self.student_policy.dist_fn(s_logits)
+                student_dist = self(minibatch).dist
 
-                # Calculate H(pi(s)||pi_theta(s)) where H is Shannon’s cross entropy between two distributions over actions
-                # BUG: TypeError: cross_entropy_loss(): argument 'input' (position 1) must be Tensor, not Independent
-                # TODO: This should probably be KL divergence
-                h = torch.nn.functional.cross_entropy(s_dist, t_dist)
+                # Calculate H(pi(s)||pi_theta(s)) where H is KL-Divergence between two distributions over actions
+                h = kl_divergence(teacher_dist, student_dist).mean()
 
                 # Get V_pi(s)
                 with torch.no_grad():
@@ -121,7 +108,6 @@ class VanillaStudentPolicy(ts.policy.A2CPolicy):
 
                 self.student_policy.optim.zero_grad()
                 dist_loss.backward()
-                # TODO: Make optimizer update both critic and actor
                 self.student_policy.optim.step()
 
         return {
