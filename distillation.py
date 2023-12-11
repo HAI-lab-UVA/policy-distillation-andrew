@@ -168,14 +168,14 @@ class ACPolicyDistillation:
 
         # Setup TB logging for teacher and student
         teacher_path = os.path.join('./logging/teacher', args.save_path)
-        teacher_writer = SummaryWriter(teacher_path)
-        teacher_writer.add_text("args", str(self.args))
-        self.teacher_logger = TensorboardLogger(teacher_writer)
+        self.teacher_writer = SummaryWriter(teacher_path)
+        self.teacher_writer.add_text("args", str(self.args))
+        self.teacher_logger = TensorboardLogger(self.teacher_writer)
 
         student_path = os.path.join('./logging/student', args.save_path)
-        student_writer = SummaryWriter(student_path)
-        student_writer.add_text("args", str(self.args))
-        self.student_logger = TensorboardLogger(student_writer)
+        self.student_writer = SummaryWriter(student_path)
+        self.student_writer.add_text("args", str(self.args))
+        self.student_logger = TensorboardLogger(self.student_writer)
 
         # Define objective func/distance metric
 
@@ -194,11 +194,14 @@ class ACPolicyDistillation:
             test_in_train=False,
         )
 
-        # Train teacher as per docs until convergence
-        self.teacher_results = self.teacher_trainer.run()
-
+        if args.retrain_teacher: 
+            # Train teacher as per docs until convergence
+            self.teacher_results = self.teacher_trainer.run()
+            torch.save(self.teacher_policy.state_dict(), './saved_models/trpo/policy.pt')
+        else: 
+            self.teacher_policy.load_state_dict(torch.load('./saved_models/trpo/policy.pt'))
         # TODO: Run the appropriate experiment
-        if args.distil_method == 'vanilla':
+        if args.distill_method == 'vanilla':
             self.RunVanilla()
         else:
             assert NotImplementedError, f"The distillation method {args.distil_method} is not supported"
@@ -215,7 +218,68 @@ class ACPolicyDistillation:
         # * Collect experience normally
         # * Update AC NNs w/ loss directly, instead of student TRPOPolicy learn() or update()
         # * Test as normal
-        assert NotImplementedError
+
+        # TODO: See what would happen if we kept this loop the same but instead of calling update we 
+        # run the optimizer with respect to the above loss
+
+        # pre-collect at least 5000 transitions with random action before training
+        self.student_train_collector.collect(n_step=5000, random=True)
+
+        self.student_policy.set_eps(0.1)
+        for i in range(int(1e6)):  # total step
+            collect_result = self.student_train_collector.collect(n_step=10)
+
+            # once if the collected episodes' mean returns reach the threshold,
+            # or every 1000 steps, we test it on test_collector
+            if collect_result['rews'].mean() >= self.student_env.spec.reward_threshold or i % 1000 == 0:
+                self.student_policy.set_eps(0.05)
+                result = self.student_test_collector.collect(n_episode=100)
+                self.teacher_writer.add_scalar("Reward/test", result['rews'].mean(), i)
+                if result['rews'].mean() >= self.student_env.spec.reward_threshold:
+                    print(f'Finished training! Test mean returns: {result["rews"].mean()}')
+                    break
+                else:
+                    # back to training eps
+                    self.student_policy.set_eps(0.1)
+
+            # train policy with a sampled batch data from buffer
+            batch, indices = self.student_buffer.sample(self.args.batch_size)
+            batch = self.student_policy.process_fn(batch, self.student_buffer, indices)
+            dist_losses = []
+            split_batch_size = self.args.batch_size or -1
+            for _ in range(self.args.repeat_per_collect):
+                for minibatch in batch.split(split_batch_size, merge_last=True):
+                    # Get pi(s)
+                    # TODO: Check whether state should be None
+                    with torch.no_grad():
+                        t_logits, t_hidden = self.teacher_policy.actor(minibatch.obs, state=None, info=minibatch.info)
+
+                    # Get pi_theta(s)
+                    # TODO: Check whether state should be None
+                    s_logits, s_hidden = self.student_policy.actor(minibatch.obs, state=None, info=minibatch.info)
+
+                    # Calculate H(pi(s)||pi_theta(s)) where H is Shannon’s cross entropy between two distributions over actions
+                    h = torch.nn.functional.cross_entropy(s_logits, t_logits)
+
+                    # Get V_pi(s)
+                    with torch.no_grad():
+                        t_val = self.teacher_policy.critic(minibatch.obs).flatten()
+
+                    # Get V_pi_theta(s)
+                    s_val = self.student_policy.critic(minibatch.obs).flatten()
+
+                    # Take difference of values
+                    val_diff = t_val - s_val
+                    # If dif > 0, set to 1 as per https://arxiv.org/pdf/1902.02186.pdf pg 7
+                    val_diff.where(torch.gt(val_diff, 0.0), torch.tensor(1.0))
+
+                    dist_loss = h * val_diff
+                    dist_losses.append(dist_loss)
+
+                    self.student_policy.optim.zero_grad()
+                    dist_loss.backward()
+                    self.student_policy.optim.step()
+            self.teacher_writer.add_scalar("Loss/train", np.mean(dist_losses), i)
     
     def RunBootstrap(self):
         """
