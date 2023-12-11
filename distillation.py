@@ -17,6 +17,8 @@ import numpy as np
 import os
 import gymnasium as gym
 
+from students import VanillaStudentPolicy
+
 class ACPolicyDistillation:
     """
     Class containing a selection of Actor-Critic policy distillation techniques for baseline experimentation. 
@@ -139,7 +141,7 @@ class ACPolicyDistillation:
         )
 
         if args.distill_method == 'vanilla':
-            self.student_policy = TRPOPolicy(
+            self.student_policy = VanillaStudentPolicy(
                 actor=self.student_ac['actor'],
                 critic=self.student_ac['critic'],
                 optim=self.student_ac['optim'],
@@ -151,11 +153,7 @@ class ACPolicyDistillation:
                 action_bound_method=args.bound_action_method,
                 lr_scheduler=self.student_ac['optim'],
                 action_space=self.env.action_space,
-                advantage_normalization=args.norm_adv,
-                optim_critic_iters=args.optim_critic_iters,
-                max_kl=args.max_kl,
-                backtrack_coeff=args.backtrack_coeff,
-                max_backtracks=args.max_backtracks,
+                advantage_normalization=args.norm_adv
             )
         else:
             assert NotImplementedError, f"The distillation method {args.distil_method} is not supported"

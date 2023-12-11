@@ -11,8 +11,7 @@ from tianshou.data import Batch
 from tianshou.policy.base import TLearningRateScheduler
 from tianshou.policy.modelfree.pg import TDistributionFunction
 
-# TODO: Subclass A2CPolicy
-class VanillaStudent(ts.policy.A2CPolicy):
+class VanillaStudentPolicy(ts.policy.A2CPolicy):
     """
     Subclass of tianshou.policy.A2CPolicy to override network update functions in learn().
     Code adapted from https://github.com/thu-ml/tianshou/blob/master/tianshou/policy/modelfree/trpo.py
