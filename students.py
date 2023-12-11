@@ -1,5 +1,6 @@
 import warnings
-from typing import Any, Literal
+from collections.abc import Callable
+from typing import Any, Literal, TypeAlias
 
 import gymnasium as gym
 import torch
@@ -8,8 +9,10 @@ from torch.distributions import kl_divergence
 
 import tianshou as ts
 from tianshou.data import Batch
-from tianshou.policy.base import TLearningRateScheduler
-from tianshou.policy.modelfree.pg import TDistributionFunction
+from tianshou.policy.base import MultipleLRSchedulers
+
+TDistributionFunction: TypeAlias = Callable[..., torch.distributions.Distribution]
+TLearningRateScheduler: TypeAlias = torch.optim.lr_scheduler.LRScheduler | MultipleLRSchedulers
 
 class VanillaStudentPolicy(ts.policy.A2CPolicy):
     """
@@ -73,47 +76,46 @@ class VanillaStudentPolicy(ts.policy.A2CPolicy):
         Loss: H(pi(s)||pi_theta(s))*[V_pi(s)-V_pi_theta(s)]_{>0}
         """
 
-        actor_losses, vf_losses, step_sizes, kls, dist_losses = [], [], [], [], []
+        val_diffs, kls, dist_losses = [], [], []
         split_batch_size = batch_size or -1
         for _ in range(repeat):
             for minibatch in batch.split(split_batch_size, merge_last=True):
                 # Get pi(s)
                 # TODO: Check whether state should be None
                 with torch.no_grad():
-                    teacher_mb = self.teacher_policy.forward(batch=minibatch, state=None)
-                    # NOTE: Equivalent to self(mb).dist within techer_policy.learn()?
-                    teacher_dist = self.teacher_policy(teacher_mb).dist
+                    teacher_dist = self.teacher_policy(minibatch).dist
 
                 # Get pi_theta(s)
                 # TODO: Check whether state should be None
                 student_dist = self(minibatch).dist
 
                 # Calculate H(pi(s)||pi_theta(s)) where H is KL-Divergence between two distributions over actions
-                h = kl_divergence(teacher_dist, student_dist).mean()
+                h = kl_divergence(teacher_dist, student_dist)
+                kls.append(h.mean().item())
 
                 # Get V_pi(s)
                 with torch.no_grad():
                     t_val = self.teacher_policy.critic(minibatch.obs).flatten()
 
                 # Get V_pi_theta(s)
-                s_val = self.student_policy.critic(minibatch.obs).flatten()
+                s_val = self.critic(minibatch.obs).flatten()
 
                 # Take difference of values
                 val_diff = t_val - s_val
                 # If dif > 0, set to 1 as per https://arxiv.org/pdf/1902.02186.pdf pg 7
                 val_diff.where(torch.gt(val_diff, 0.0), torch.tensor(1.0))
+                val_diffs.append(val_diff.mean().item())
 
                 dist_loss = h * val_diff
-                dist_losses.append(dist_loss)
+                avg_dist_loss = dist_loss.mean()
+                dist_losses.append(avg_dist_loss.item())
 
-                self.student_policy.optim.zero_grad()
-                dist_loss.backward()
-                self.student_policy.optim.step()
+                self.optim.zero_grad()
+                avg_dist_loss.backward()
+                self.optim.step()
 
         return {
-            "loss/actor": actor_losses,
-            "loss/vf": vf_losses,
-            "step_size": step_sizes,
+            "val_diff": val_diffs,
             "kl": kls,
             "loss/distill": dist_losses,
         }

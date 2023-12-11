@@ -153,7 +153,7 @@ class ACPolicyDistillation:
                 action_bound_method=args.bound_action_method,
                 lr_scheduler=self.student_ac['optim'],
                 action_space=self.env.action_space,
-                advantage_normalization=args.norm_adv
+                teacher_policy = self.teacher_policy
             )
         else:
             assert NotImplementedError, f"The distillation method {args.distil_method} is not supported"
