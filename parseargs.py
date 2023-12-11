@@ -1,6 +1,7 @@
 import argparse
 import os 
 import datetime
+import distutils
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -11,8 +12,10 @@ def parse_arguments():
                         help="the directory to which results are saved")
     parser.add_argument("--env-name", type=str, default="pusher",
                         help="the name of the environment")
-    parser.add_argument("--distil-method", type=str, default="vanilla",
+    parser.add_argument("--distill-method", type=str, default="vanilla",
                         help="the method of distillation to use")
+    parser.add_argument("--retrain-teacher", type=lambda x:bool(distutils.util.strtobool(x)), default=False,
+                        help="whether to retrain and save teacher policy")
     
     # Below args from https://github.com/thu-ml/tianshou/blob/master/examples/mujoco/mujoco_trpo.py
     parser.add_argument("--buffer-size", type=int, default=4096)
