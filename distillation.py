@@ -9,7 +9,7 @@ from tianshou.data import Collector, ReplayBuffer, VectorReplayBuffer
 from tianshou.policy import TRPOPolicy
 from tianshou.trainer import OnpolicyTrainer
 from tianshou.utils import TensorboardLogger
-from tianshou.utils.net.common import Net
+from tianshou.utils.net.common import Net, ActorCritic
 from tianshou.utils.net.continuous import ActorProb, Critic
 
 import pandas as pd
@@ -52,23 +52,38 @@ class ACPolicyDistillation:
             device=self.device,
         )
         critic = Critic(net_c, device=self.device).to(self.device)
-        torch.nn.init.constant_(actor.sigma_param, -0.5)
-        for m in list(actor.modules()) + list(critic.modules()):
-            if isinstance(m, torch.nn.Linear):
-                # orthogonal initialization
-                torch.nn.init.orthogonal_(m.weight, gain=np.sqrt(2))
-                torch.nn.init.zeros_(m.bias)
-        # do last policy layer scaling, this will make initial actions have (close to)
-        # 0 mean and std, and will help boost performances,
-        # see https://arxiv.org/abs/2006.05990, Fig.24 for details
-        for m in actor.mu.modules():
-            if isinstance(m, torch.nn.Linear):
-                torch.nn.init.zeros_(m.bias)
-                m.weight.data.copy_(0.01 * m.weight.data)
 
         if comb_params:
-            optim = torch.optim.Adam(list(actor.parameters()) + list(critic.parameters()), lr=self.args.lr)
+            actor_critic = ActorCritic(actor, critic)
+            torch.nn.init.constant_(actor.sigma_param, -0.5)
+            for m in actor_critic.modules():
+                if isinstance(m, torch.nn.Linear):
+                    # orthogonal initialization
+                    torch.nn.init.orthogonal_(m.weight, gain=np.sqrt(2))
+                    torch.nn.init.zeros_(m.bias)
+            # do last policy layer scaling, this will make initial actions have (close to)
+            # 0 mean and std, and will help boost performances,
+            # see https://arxiv.org/abs/2006.05990, Fig.24 for details
+            for m in actor.mu.modules():
+                if isinstance(m, torch.nn.Linear):
+                    torch.nn.init.zeros_(m.bias)
+                    m.weight.data.copy_(0.01 * m.weight.data)
+
+            optim = torch.optim.Adam(actor_critic.parameters(), lr=self.args.lr)
         else:
+            torch.nn.init.constant_(actor.sigma_param, -0.5)
+            for m in list(actor.modules()) + list(critic.modules()):
+                if isinstance(m, torch.nn.Linear):
+                    # orthogonal initialization
+                    torch.nn.init.orthogonal_(m.weight, gain=np.sqrt(2))
+                    torch.nn.init.zeros_(m.bias)
+            # do last policy layer scaling, this will make initial actions have (close to)
+            # 0 mean and std, and will help boost performances,
+            # see https://arxiv.org/abs/2006.05990, Fig.24 for details
+            for m in actor.mu.modules():
+                if isinstance(m, torch.nn.Linear):
+                    torch.nn.init.zeros_(m.bias)
+                    m.weight.data.copy_(0.01 * m.weight.data)
             optim = torch.optim.Adam(critic.parameters(), lr=self.args.lr)
 
         lr_scheduler = None
@@ -200,9 +215,9 @@ class ACPolicyDistillation:
         if args.retrain_teacher: 
             # Train teacher as per docs until convergence
             self.teacher_results = self.teacher_trainer.run()
-            torch.save(self.teacher_policy.state_dict(), './saved_models/trpo/policy.pt')
+            torch.save(self.teacher_policy.state_dict(), './saved_models/ppo/policy.pt')
         else: 
-            self.teacher_policy.load_state_dict(torch.load('./saved_models/trpo/policy.pt'))
+            self.teacher_policy.load_state_dict(torch.load('./saved_models/ppo/policy.pt'))
 
         # Train student 
         self.student_policy.actor.load_state_dict(self.teacher_policy.actor.state_dict())
