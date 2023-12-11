@@ -76,7 +76,7 @@ class VanillaStudentPolicy(ts.policy.A2CPolicy):
         Loss: H(pi(s)||pi_theta(s))*[V_pi(s)-V_pi_theta(s)]_{>0}
         """
 
-        val_diffs, kls, dist_losses = [], [], []
+        val_diffs, hs, dist_losses = [], [], []
         split_batch_size = batch_size or -1
         for _ in range(repeat):
             for minibatch in batch.split(split_batch_size, merge_last=True):
@@ -89,9 +89,10 @@ class VanillaStudentPolicy(ts.policy.A2CPolicy):
                 # TODO: Check whether state should be None
                 student_dist = self(minibatch).dist
 
-                # Calculate H(pi(s)||pi_theta(s)) where H is KL-Divergence between two distributions over actions
-                h = kl_divergence(teacher_dist, student_dist)
-                kls.append(h.mean().item())
+                # Calculate H(pi(s)||pi_theta(s)) where H is 
+                # the entropy of pi(s) plus the KL-Divergence between two distributions over actions
+                h = teacher_dist.entropy() + kl_divergence(teacher_dist, student_dist)
+                hs.append(h.mean().item())
 
                 # Get V_pi(s)
                 with torch.no_grad():
@@ -103,7 +104,7 @@ class VanillaStudentPolicy(ts.policy.A2CPolicy):
                 # Take difference of values
                 val_diff = t_val - s_val
                 # If dif > 0, set to 1 as per https://arxiv.org/pdf/1902.02186.pdf pg 7
-                val_diff.where(torch.gt(val_diff, 0.0), torch.tensor(1.0))
+                val_diff = torch.where(torch.gt(val_diff, 0.0), torch.tensor(1.0), val_diff)
                 val_diffs.append(val_diff.mean().item())
 
                 dist_loss = h * val_diff
@@ -116,6 +117,6 @@ class VanillaStudentPolicy(ts.policy.A2CPolicy):
 
         return {
             "val_diff": val_diffs,
-            "kl": kls,
+            "h": hs,
             "loss/distill": dist_losses,
         }

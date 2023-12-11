@@ -205,7 +205,8 @@ class ACPolicyDistillation:
             self.teacher_policy.load_state_dict(torch.load('./saved_models/trpo/policy.pt'))
 
         # Train student 
-
+        self.student_policy.actor.load_state_dict(self.teacher_policy.actor.state_dict())
+        self.student_policy.critic.load_state_dict(self.teacher_policy.critic.state_dict())
         self.student_trainer = OnpolicyTrainer(
             policy=self.student_policy,
             train_collector=self.student_train_collector,
