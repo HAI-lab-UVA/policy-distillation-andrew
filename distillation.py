@@ -225,14 +225,14 @@ class ACPolicyDistillation:
         # pre-collect at least 5000 transitions with random action before training
         self.student_train_collector.collect(n_step=5000, random=True)
 
-        self.student_policy.set_eps(0.1)
+        # self.student_policy.set_eps(0.1)
         for i in range(int(1e6)):  # total step
             collect_result = self.student_train_collector.collect(n_step=10)
 
             # once if the collected episodes' mean returns reach the threshold,
             # or every 1000 steps, we test it on test_collector
-            if collect_result['rews'].mean() >= self.student_env.spec.reward_threshold or i % 1000 == 0:
-                self.student_policy.set_eps(0.05)
+            if collect_result['rews'].mean() >= i % 1000 == 0:
+                # self.student_policy.set_eps(0.05)
                 result = self.student_test_collector.collect(n_episode=100)
                 self.teacher_writer.add_scalar("Reward/test", result['rews'].mean(), i)
                 if result['rews'].mean() >= self.student_env.spec.reward_threshold:
@@ -253,13 +253,22 @@ class ACPolicyDistillation:
                     # TODO: Check whether state should be None
                     with torch.no_grad():
                         t_logits, t_hidden = self.teacher_policy.actor(minibatch.obs, state=None, info=minibatch.info)
+                        if isinstance(t_logits, tuple):
+                            t_dist = self.teacher_policy.dist_fn(*t_logits)
+                        else:
+                            t_dist = self.teacher_policy.dist_fn(t_logits)
 
                     # Get pi_theta(s)
                     # TODO: Check whether state should be None
                     s_logits, s_hidden = self.student_policy.actor(minibatch.obs, state=None, info=minibatch.info)
+                    if isinstance(s_logits, tuple):
+                        s_dist = self.student_policy.dist_fn(*s_logits)
+                    else:
+                        s_dist = self.student_policy.dist_fn(s_logits)
 
                     # Calculate H(pi(s)||pi_theta(s)) where H is Shannon’s cross entropy between two distributions over actions
-                    h = torch.nn.functional.cross_entropy(s_logits, t_logits)
+                    # BUG: TypeError: cross_entropy_loss(): argument 'input' (position 1) must be Tensor, not Independent
+                    h = torch.nn.functional.cross_entropy(s_dist, t_dist)
 
                     # Get V_pi(s)
                     with torch.no_grad():

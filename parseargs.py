@@ -27,7 +27,7 @@ def parse_arguments():
     )  # baselines [32, 32]
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--gamma", type=float, default=0.99)
-    parser.add_argument("--epoch", type=int, default=100)
+    parser.add_argument("--epoch", type=int, default=50)
     parser.add_argument("--step-per-epoch", type=int, default=30000)
     parser.add_argument("--step-per-collect", type=int, default=1024)
     parser.add_argument("--repeat-per-collect", type=int, default=1)
