@@ -207,6 +207,10 @@ class TeacherVStudentPolicy(ts.policy.TRPOPolicy):
             t_val = self.teacher_policy.critic(batch.obs).flatten()
             mask = np.repeat(self.value_mask(buffer, indices)[...,None],batch.obs_next.shape[1],axis=1)
             t_next_val = self.teacher_policy.critic(batch.obs_next*mask).flatten()
+
+        # TODO: KL div and actor loss start and remain low throughout training
+        # * behavior is similar to baseline 
+        # * Check whether rew needs to be modified when saved to buffer
         rew = to_numpy(t_next_val) - to_numpy(t_val) + batch.rew
         if v_s_ is None:
             assert np.isclose(gae_lambda, 1.0)

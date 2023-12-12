@@ -210,7 +210,7 @@ class ACPolicyDistillation:
                 max_backtracks=args.max_backtracks,
             )
         else:
-            assert NotImplementedError, f"The distillation method {args.distil_method} is not supported"
+            assert NotImplementedError, f"The distillation method {args.distill_method} is not supported"
 
         # Setup buffers and collectors for teacher and student
         if args.training_num > 1:
@@ -254,9 +254,9 @@ class ACPolicyDistillation:
         if args.retrain_teacher: 
             # Train teacher as per docs until convergence
             self.teacher_results = self.teacher_trainer.run()
-            torch.save(self.teacher_policy.state_dict(), './saved_models/trpo/policy.pt')
+            torch.save(self.teacher_policy.state_dict(), './saved_models/pusher/trpo/policy.pt')
         else: 
-            self.teacher_policy.load_state_dict(torch.load('./saved_models/trpo/policy.pt'))
+            self.teacher_policy.load_state_dict(torch.load('./saved_models/pusher/trpo/policy.pt'))
 
         # Train student 
         self.student_policy.actor.load_state_dict(self.teacher_policy.actor.state_dict())
