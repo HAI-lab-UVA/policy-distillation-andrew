@@ -111,6 +111,12 @@ class ACPolicyDistillation:
             self.teacher_test_env = ts.env.ShmemVectorEnv([lambda: gym.make("Pusher-v4") for _ in range(self.args.test_num)])            
             self.student_train_env = ts.env.ShmemVectorEnv([lambda: gym.make("envs.register:NewGoal-Pusher-v4") for _ in range(args.training_num)])
             self.student_test_env = ts.env.ShmemVectorEnv([lambda: gym.make("envs.register:NewGoal-Pusher-v4") for _ in range(args.test_num)])
+        elif args.env_name == 'HalfCheetah':
+            self.env = gym.make("HalfCheetah-v4")
+            self.teacher_train_env = ts.env.ShmemVectorEnv([lambda: gym.make("HalfCheetah-v4") for _ in range(args.training_num)])            
+            self.teacher_test_env = ts.env.ShmemVectorEnv([lambda: gym.make("HalfCheetah-v4") for _ in range(self.args.test_num)])            
+            self.student_train_env = ts.env.ShmemVectorEnv([lambda: gym.make("HalfCheetah-v4") for _ in range(args.training_num)])
+            self.student_test_env = ts.env.ShmemVectorEnv([lambda: gym.make("HalfCheetah-v4") for _ in range(args.test_num)])
         else:
             assert NotImplementedError, f"The environment {args.env_name} is not supported"
 
@@ -254,9 +260,9 @@ class ACPolicyDistillation:
         if args.retrain_teacher: 
             # Train teacher as per docs until convergence
             self.teacher_results = self.teacher_trainer.run()
-            torch.save(self.teacher_policy.state_dict(), './saved_models/pusher/trpo/policy.pt')
+            torch.save(self.teacher_policy.state_dict(), f'./saved_models/{args.env_name}/trpo/policy.pt')
         else: 
-            self.teacher_policy.load_state_dict(torch.load('./saved_models/pusher/trpo/policy.pt'))
+            self.teacher_policy.load_state_dict(torch.load(f'./saved_models/{args.env_name}/trpo/policy.pt'))
 
         # Train student 
         self.student_policy.actor.load_state_dict(self.teacher_policy.actor.state_dict())
