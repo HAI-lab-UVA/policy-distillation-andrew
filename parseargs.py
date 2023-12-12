@@ -12,7 +12,7 @@ def parse_arguments():
                         help="the directory to which results are saved")
     parser.add_argument("--env-name", type=str, default="pusher",
                         help="the name of the environment")
-    parser.add_argument("--distill-method", type=str, default="vanilla",
+    parser.add_argument("--distill-method", type=str, default="teacherV",
                         help="the method of distillation to use")
     parser.add_argument("--retrain-teacher", type=lambda x:bool(distutils.util.strtobool(x)), default=False,
                         help="whether to retrain and save teacher policy")

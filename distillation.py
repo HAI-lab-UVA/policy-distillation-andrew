@@ -17,7 +17,7 @@ import numpy as np
 import os
 import gymnasium as gym
 
-from students import VanillaStudentPolicy
+from students import VanillaStudentPolicy, TeacherVStudentPolicy
 
 class ACPolicyDistillation:
     """
@@ -52,10 +52,10 @@ class ACPolicyDistillation:
             device=self.device,
         )
         critic = Critic(net_c, device=self.device).to(self.device)
+        torch.nn.init.constant_(actor.sigma_param, -0.5)
 
         if comb_params:
             actor_critic = ActorCritic(actor, critic)
-            torch.nn.init.constant_(actor.sigma_param, -0.5)
             for m in actor_critic.modules():
                 if isinstance(m, torch.nn.Linear):
                     # orthogonal initialization
@@ -71,7 +71,6 @@ class ACPolicyDistillation:
 
             optim = torch.optim.Adam(actor_critic.parameters(), lr=self.args.lr)
         else:
-            torch.nn.init.constant_(actor.sigma_param, -0.5)
             for m in list(actor.modules()) + list(critic.modules()):
                 if isinstance(m, torch.nn.Linear):
                     # orthogonal initialization
@@ -134,8 +133,6 @@ class ACPolicyDistillation:
 
         # Initialize both teacher and student with pre-defined networks for actor and critic
         self.teacher_ac = self.make_AC(comb_params=False)
-        self.student_ac = self.make_AC(comb_params=True)
-
         self.teacher_policy = TRPOPolicy(
             actor=self.teacher_ac['actor'],
             critic=self.teacher_ac['critic'],
@@ -156,6 +153,7 @@ class ACPolicyDistillation:
         )
 
         if args.distill_method == 'vanilla':
+            self.student_ac = self.make_AC(comb_params=True)
             self.student_policy = VanillaStudentPolicy(
                 actor=self.student_ac['actor'],
                 critic=self.student_ac['critic'],
@@ -169,6 +167,47 @@ class ACPolicyDistillation:
                 lr_scheduler=self.student_ac['optim'],
                 action_space=self.env.action_space,
                 teacher_policy = self.teacher_policy
+            )
+        elif args.distill_method == 'teacherV':
+            self.student_ac = self.make_AC(comb_params=False)
+            self.student_policy = TeacherVStudentPolicy(
+                actor=self.student_ac['actor'],
+                critic=self.student_ac['critic'],
+                optim=self.student_ac['optim'],
+                dist_fn=self.dist,
+                discount_factor=args.gamma,
+                gae_lambda=args.gae_lambda,
+                reward_normalization=args.rew_norm,
+                action_scaling=True,
+                action_bound_method=args.bound_action_method,
+                lr_scheduler=self.student_ac['schedule'],
+                action_space=self.env.action_space,
+                advantage_normalization=args.norm_adv,
+                optim_critic_iters=args.optim_critic_iters,
+                max_kl=args.max_kl,
+                backtrack_coeff=args.backtrack_coeff,
+                max_backtracks=args.max_backtracks,
+                teacher_policy = self.teacher_policy
+            )
+        elif args.distill_method == 'baseline':
+            self.student_ac = self.make_AC(comb_params=False)
+            self.student_policy = TRPOPolicy(
+                actor=self.student_ac['actor'],
+                critic=self.student_ac['critic'],
+                optim=self.student_ac['optim'],
+                dist_fn=self.dist,
+                discount_factor=args.gamma,
+                gae_lambda=args.gae_lambda,
+                reward_normalization=args.rew_norm,
+                action_scaling=True,
+                action_bound_method=args.bound_action_method,
+                lr_scheduler=self.student_ac['schedule'],
+                action_space=self.env.action_space,
+                advantage_normalization=args.norm_adv,
+                optim_critic_iters=args.optim_critic_iters,
+                max_kl=args.max_kl,
+                backtrack_coeff=args.backtrack_coeff,
+                max_backtracks=args.max_backtracks,
             )
         else:
             assert NotImplementedError, f"The distillation method {args.distil_method} is not supported"
@@ -239,27 +278,11 @@ class ACPolicyDistillation:
         self.student_results = self.student_trainer.run()
 
         return None
-
-    def RunVanilla(self):
-        """
-        Run an experiment with vanilla on-policy distillation.
-
-        Loss: H(pi(s)||pi_theta(s))*[V_pi(s)-V_pi_theta(s)]_{>0}
-        """
-        assert NotImplementedError
     
     def RunBootstrap(self):
         """
         Run a policy distillation experiment where the value function is bootstrapped from the Teacher.
 
         Loss: -log(pi_theta(a_t|T_t)) * [r(a_t|T_t) + V_pi(T_{t+1})]
-        """
-        assert NotImplementedError
-    
-    def RunCriticReward(self):
-        """
-        Run a policy distillation experiment where the critic is used as intrinsic reward for the Student.
-
-        Loss: E_pi_theta[SUM over T: V_pi(T_{t+1}) - V_pi(T_t) + r_t]
         """
         assert NotImplementedError
