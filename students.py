@@ -175,7 +175,6 @@ class TeacherVStudentPolicy(ts.policy.TRPOPolicy):
         )
         self.teacher_policy = teacher_policy
 
-    @staticmethod
     def compute_episodic_return(
         self,
         batch: Batch,
@@ -206,8 +205,9 @@ class TeacherVStudentPolicy(ts.policy.TRPOPolicy):
         """
         with torch.no_grad():
             t_val = self.teacher_policy.critic(batch.obs).flatten()
-            t_next_val = self.teacher_policy.critic(batch.obs_next*self.value_mask(buffer, indices)).flatten()
-        rew = t_next_val - t_val + batch.rew
+            mask = np.repeat(self.value_mask(buffer, indices)[...,None],batch.obs_next.shape[1],axis=1)
+            t_next_val = self.teacher_policy.critic(batch.obs_next*mask).flatten()
+        rew = to_numpy(t_next_val) - to_numpy(t_val) + batch.rew
         if v_s_ is None:
             assert np.isclose(gae_lambda, 1.0)
             v_s_ = np.zeros_like(rew)
